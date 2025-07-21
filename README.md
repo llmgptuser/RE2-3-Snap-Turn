@@ -4,6 +4,6 @@ Install Praydog's Reframework VR mod: https://cursey.github.io/reframework-book/
 
 Place snap_turn.lua under `reframework\autorun` under your RE2/3 game dir.
 
-Can change settings in "Snap Turn" under Script Generated UI.
-
 Snap turn is enabled in VR first person mode.
+
+Can change settings in "Snap Turn" under Script Generated UI.
