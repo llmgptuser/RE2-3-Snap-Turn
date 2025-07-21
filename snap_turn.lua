@@ -103,7 +103,7 @@ sdk.hook(
     function(args)
     end,
     function(retval)
-        if cfg.no_camera_recoil then
+        if cfg.no_camera_recoil and vrmod:is_hmd_active() then
             local camera_recoil_param=sdk.to_managed_object(retval)
             camera_recoil_param:set_field("Yaw", 0.0)
             camera_recoil_param:set_field("Pitch", 0.0)
@@ -122,7 +122,7 @@ re.on_draw_ui(function()
             changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
             changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
         end
-        changed, cfg.no_camera_recoil = imgui.checkbox("No Camera Recoil", cfg.no_camera_recoil)
+        changed, cfg.no_camera_recoil = imgui.checkbox("No Camera Recoil in VR", cfg.no_camera_recoil)
         imgui.tree_pop()
     end
 end)
