@@ -14,6 +14,27 @@ local cfg = {
     recenter_threshold = 0.4,
 }
 
+local cfg_path = "re2_vr/snap_turn_config.json"
+
+local function load_cfg()
+    local loaded_cfg = json.load_file(cfg_path)
+
+    if loaded_cfg == nil then
+        json.dump_file(cfg_path, cfg)
+        return
+    end
+
+    for k, v in pairs(loaded_cfg) do
+        cfg[k] = v
+    end
+end
+
+load_cfg()
+
+re.on_config_save(function()
+    json.dump_file(cfg_path, cfg)
+end)
+
 local gamepad_singleton_t = sdk.find_type_definition("via.hid.GamePad")
 
 local function get_right_input_axis()
