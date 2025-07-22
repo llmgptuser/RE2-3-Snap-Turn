@@ -31,6 +31,17 @@ local function get_right_input_axis()
     return pad:get_AxisR()
 end
 
+local jackdominator_rtt = nil
+local jackdominator_td = sdk.find_type_definition(sdk.game_namespace("JackDominator"))
+local jacked_method = jackdominator_td:get_method("get_Jacked")
+
+local function is_jacked(go)
+    jackdominator_rtt = jackdominator_rtt or sdk.typeof(sdk.game_namespace("JackDominator"))
+    local jd = go:call("getComponent(System.Type)", jackdominator_rtt)
+    if not jd then return false end
+    return jacked_method:call(jd)
+end
+
 local function set_world_rotation(rot)
     camera_system = sdk.get_managed_singleton(sdk.game_namespace("camera.CameraSystem"))
     if not camera_system then return end
@@ -66,7 +77,7 @@ re.on_pre_application_entry("CreateUpdateGroupBehaviorTree", function()
     if not re2.player then
         return 
     end
-    if not firstpersonmod:will_be_used() then
+    if not firstpersonmod:will_be_used() or is_jacked(re2.player) then
         return
     end
     if not vrmod:is_hmd_active() then
