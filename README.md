@@ -7,3 +7,7 @@ Place `snap_turn.lua` under `reframework\autorun` under your RE2/3 game dir.
 Snap turn is enabled in VR first person mode.
 
 Can change settings in "Snap Turn" under Script Generated UI.
+
+re2_vr_crosshair.lua fixes a minor issue when using gamepad.
+
+re2_smooth_movement.lua reduces sliding.
