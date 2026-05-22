@@ -9,9 +9,10 @@ local cfg = {
     snap_turn_enabled = true,
     snap_turn_back_enabled = true,
     no_camera_recoil = true,
-    angle = 45.0,
+    snap_turn_angle = 45.0,
     tilt_threshold = 0.8,
     recenter_threshold = 0.4,
+    smooth_turn_speed = 5.0,
 }
 
 local cfg_path = "re2_vr/snap_turn_config.json"
@@ -92,9 +93,6 @@ local is_stick_centered = true
 local is_stick_centered_y = true
 
 re.on_pre_application_entry("CreateUpdateGroupBehaviorTree", function()
-    if not cfg.snap_turn_enabled then
-        return
-    end
     if not re2.player then
         return 
     end
@@ -108,23 +106,27 @@ re.on_pre_application_entry("CreateUpdateGroupBehaviorTree", function()
     local right_stick_axis = get_right_input_axis()
     local x_axis = right_stick_axis.x
     local y_axis = right_stick_axis.y
-    if is_stick_centered then
-        if math.abs(x_axis) > cfg.tilt_threshold then
-            camera_rot = camera_rot * calculate_turn_quat(cfg.angle * (-math_sign(x_axis)))
-            is_stick_centered = false
-        end
-    elseif math.abs(x_axis) < cfg.recenter_threshold then
-        is_stick_centered = true
-    end
-    if cfg.snap_turn_back_enabled and is_stick_centered then
-        if is_stick_centered_y then
-            if y_axis < -cfg.tilt_threshold then
-                camera_rot = camera_rot * calculate_turn_quat(180)
-                is_stick_centered_y = false
+    if cfg.snap_turn_enabled then
+        if is_stick_centered then
+            if math.abs(x_axis) > cfg.tilt_threshold then
+                camera_rot = camera_rot * calculate_turn_quat(cfg.snap_turn_angle * (-math_sign(x_axis)))
+                is_stick_centered = false
             end
-        elseif math.abs(y_axis) < cfg.recenter_threshold then
-            is_stick_centered_y = true
+        elseif math.abs(x_axis) < cfg.recenter_threshold then
+            is_stick_centered = true
         end
+        if cfg.snap_turn_back_enabled and is_stick_centered then
+            if is_stick_centered_y then
+                if y_axis < -cfg.tilt_threshold then
+                    camera_rot = camera_rot * calculate_turn_quat(180.0)
+                    is_stick_centered_y = false
+                end
+            elseif math.abs(y_axis) < cfg.recenter_threshold then
+                is_stick_centered_y = true
+            end
+        end
+    else
+        camera_rot = camera_rot * calculate_turn_quat(-x_axis * cfg.smooth_turn_speed)
     end
     set_world_rotation(camera_rot)
 end)
@@ -146,10 +148,10 @@ sdk.hook(
 
 re.on_draw_ui(function()
     local changed = false
-    if imgui.tree_node("Snap Turn") then
+    if imgui.tree_node("Enhanced Movement") then
         changed, cfg.snap_turn_enabled = imgui.checkbox("Snap Turn Enabled", cfg.snap_turn_enabled)
         if cfg.snap_turn_enabled then
-            changed, cfg.angle = imgui.drag_float("Turn Angle", cfg.angle, 1.0, 15.0, 180.0)
+            changed, cfg.snap_turn_angle = imgui.drag_float("Snap Turn Angle", cfg.snap_turn_angle, 15.0, 15.0, 90.0)
             changed, cfg.snap_turn_back_enabled = imgui.checkbox("Snap Turn Back Enabled", cfg.snap_turn_back_enabled)
             changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
             changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
