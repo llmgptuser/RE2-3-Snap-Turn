@@ -152,9 +152,11 @@ re.on_draw_ui(function()
         changed, cfg.snap_turn_enabled = imgui.checkbox("Snap Turn Enabled", cfg.snap_turn_enabled)
         if cfg.snap_turn_enabled then
             changed, cfg.snap_turn_angle = imgui.drag_float("Snap Turn Angle", cfg.snap_turn_angle, 15.0, 15.0, 90.0)
-            changed, cfg.snap_turn_back_enabled = imgui.checkbox("Snap Turn Back Enabled", cfg.snap_turn_back_enabled)
+            changed, cfg.snap_turn_back_enabled = imgui.checkbox("Tild Down to Turn Back Enabled", cfg.snap_turn_back_enabled)
             changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
             changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
+        else
+            changed, cfg.smooth_turn_speed = imgui.drag_float("Smooth Turn Speed", cfg.smooth_turn_speed, 1.0, 1.0, 50.0)
         end
         changed, cfg.no_camera_recoil = imgui.checkbox("No Camera Recoil in VR", cfg.no_camera_recoil)
         imgui.tree_pop()
