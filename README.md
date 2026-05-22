@@ -4,9 +4,9 @@ Install Praydog's Reframework VR mod: https://cursey.github.io/reframework-book/
 
 Place `snap_turn.lua` under `reframework\autorun` under your RE2/3 game dir.
 
-Snap turn is enabled in VR first person mode.
+Snap or Smooth turn is enabled in VR first person mode.
 
-Can change settings in "Snap Turn" under Script Generated UI.
+Can change settings in "Enhanced Movement" under Script Generated UI.
 
 re2_vr_crosshair.lua fixes a minor issue when using gamepad.
 
