@@ -6,13 +6,12 @@ end
 local re2 = require("utility/RE2")
 
 local cfg = {
-    snap_turn_enabled = true,
     snap_turn_back_enabled = true,
-    no_camera_recoil = true,
     snap_turn_angle = 45.0,
-    tilt_threshold = 0.8,
     recenter_threshold = 0.4,
-    smooth_turn_speed = 5.0,
+    tilt_threshold = 0.8,
+    zero_pitch = true,
+    no_camera_recoil = true,
 }
 
 local cfg_path = "re2_vr/snap_turn_config.json"
@@ -36,6 +35,57 @@ re.on_config_save(function()
     json.dump_file(cfg_path, cfg)
 end)
 
+local function should_apply_snap_turn()
+    return vrmod:is_hmd_active()
+end
+
+local jackdominator_rtt = nil
+local jackdominator_td = sdk.find_type_definition(sdk.game_namespace("JackDominator"))
+local jacked_method = jackdominator_td:get_method("get_Jacked")
+
+local function is_jacked(go)
+    jackdominator_rtt = jackdominator_rtt or sdk.typeof(sdk.game_namespace("JackDominator"))
+    local jd = go:call("getComponent(System.Type)", jackdominator_rtt)
+    if not jd then return false end
+    return jacked_method:call(jd)
+end
+
+sdk.hook(
+    sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("updateYaw"),
+    function(args)
+        if not should_apply_snap_turn() then return end
+        -- Block native stick turn input.
+        args[3] = sdk.float_to_ptr(0.0)
+    end,
+    function(retval)
+        return retval
+    end
+)
+
+sdk.hook(
+    sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("updatePitch"),
+    function(args)
+        if not should_apply_snap_turn() or not cfg.zero_pitch then return end
+        local this = sdk.to_managed_object(args[2])
+        if this == nil then return end
+        this:call("setPitch", 0.0)
+    end,
+    function(retval)
+        return retval
+    end
+)
+
+sdk.hook(
+    sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("setPitch"),
+    function(args)
+        if not should_apply_snap_turn() or not cfg.zero_pitch then return end
+        args[3] = sdk.float_to_ptr(0.0)
+    end,
+    function(retval)
+        return retval
+    end
+)
+
 local gamepad_singleton_t = sdk.find_type_definition("via.hid.GamePad")
 
 local function get_right_input_axis()
@@ -53,83 +103,43 @@ local function get_right_input_axis()
     return pad:get_AxisR()
 end
 
-local jackdominator_rtt = nil
-local jackdominator_td = sdk.find_type_definition(sdk.game_namespace("JackDominator"))
-local jacked_method = jackdominator_td:get_method("get_Jacked")
-
-local function is_jacked(go)
-    jackdominator_rtt = jackdominator_rtt or sdk.typeof(sdk.game_namespace("JackDominator"))
-    local jd = go:call("getComponent(System.Type)", jackdominator_rtt)
-    if not jd then return false end
-    return jacked_method:call(jd)
-end
-
-local function set_world_rotation(rot)
-    camera_system = sdk.get_managed_singleton(sdk.game_namespace("camera.CameraSystem"))
-    if not camera_system then return end
-    camera_controller = camera_system:call("get_BusyCameraController")
-    if not camera_controller then return end
-    camera_controller:call("set_CameraRotation", rot)
-end
-
 local function math_sign(x)
-    if x > 0 then
-        return 1
-    elseif x < 0 then
-        return -1
-    else
-        return 0
-    end
+    return x > 0 and 1 or (x < 0 and -1 or 0)
 end
 
-local function calculate_turn_quat(angle)
-    local turn_angle_rad = math.rad(angle)
-    local half_theta = turn_angle_rad / 2
-    return Quaternion.new(math.cos(half_theta), 0, math.sin(half_theta), 0)
+local is_stick_reset = true
+
+local function get_stick_turn_rad()
+    local axis = get_right_input_axis()
+    local x = axis.x
+    local y = axis.y
+    if is_stick_reset then
+        if math.abs(x) > cfg.tilt_threshold then
+            is_stick_reset = false
+            return math.rad(math_sign(x) * cfg.snap_turn_angle)
+        end
+        if cfg.snap_turn_back_enabled and y < -cfg.tilt_threshold and math.abs(x) < cfg.recenter_threshold then
+            is_stick_reset = false
+            return math.rad(180.0)
+        end
+    end
+    if math.abs(x) < cfg.recenter_threshold and math.abs(y) < cfg.recenter_threshold then
+        is_stick_reset = true
+    end
+    return 0.0
 end
 
-local camera_rot = Quaternion.new(math.rad(90)/2, 0, math.rad(90)/2, 0)
-local is_stick_centered = true
-local is_stick_centered_y = true
-
-re.on_pre_application_entry("CreateUpdateGroupBehaviorTree", function()
-    if not re2.player then
-        return 
+sdk.hook(
+    sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("setYaw"),
+    function(args)
+        if not should_apply_snap_turn() or not re2.player or is_jacked(re2.player) then return end
+        stick_turn_rad = get_stick_turn_rad()
+        args[3] = sdk.float_to_ptr(sdk.to_float(args[3]) - stick_turn_rad)
+    end,
+    function(retval)
+        return retval
     end
-    if not firstpersonmod:will_be_used() or is_jacked(re2.player) then
-        return
-    end
-    if not vrmod:is_hmd_active() then
-        return
-    end
-
-    local right_stick_axis = get_right_input_axis()
-    local x_axis = right_stick_axis.x
-    local y_axis = right_stick_axis.y
-    if cfg.snap_turn_enabled then
-        if is_stick_centered then
-            if math.abs(x_axis) > cfg.tilt_threshold then
-                camera_rot = camera_rot * calculate_turn_quat(cfg.snap_turn_angle * (-math_sign(x_axis)))
-                is_stick_centered = false
-            end
-        elseif math.abs(x_axis) < cfg.recenter_threshold then
-            is_stick_centered = true
-        end
-        if cfg.snap_turn_back_enabled and is_stick_centered then
-            if is_stick_centered_y then
-                if y_axis < -cfg.tilt_threshold then
-                    camera_rot = camera_rot * calculate_turn_quat(180.0)
-                    is_stick_centered_y = false
-                end
-            elseif math.abs(y_axis) < cfg.recenter_threshold then
-                is_stick_centered_y = true
-            end
-        end
-    else
-        camera_rot = camera_rot * calculate_turn_quat(-x_axis * cfg.smooth_turn_speed)
-    end
-    set_world_rotation(camera_rot)
-end)
+)
 
 -- Zero out recoil camera bounce.
 sdk.hook(
@@ -137,7 +147,7 @@ sdk.hook(
     function(args)
     end,
     function(retval)
-        if cfg.no_camera_recoil and vrmod:is_hmd_active() then
+        if cfg.no_camera_recoil and should_apply_snap_turn() then
             local camera_recoil_param=sdk.to_managed_object(retval)
             camera_recoil_param:set_field("Yaw", 0.0)
             camera_recoil_param:set_field("Pitch", 0.0)
@@ -148,17 +158,13 @@ sdk.hook(
 
 re.on_draw_ui(function()
     local changed = false
-    if imgui.tree_node("Enhanced Movement") then
-        changed, cfg.snap_turn_enabled = imgui.checkbox("Snap Turn Enabled", cfg.snap_turn_enabled)
-        if cfg.snap_turn_enabled then
-            changed, cfg.snap_turn_angle = imgui.drag_float("Snap Turn Angle", cfg.snap_turn_angle, 15.0, 15.0, 90.0)
-            changed, cfg.snap_turn_back_enabled = imgui.checkbox("Tild Down to Turn Back Enabled", cfg.snap_turn_back_enabled)
-            changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
-            changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
-        else
-            changed, cfg.smooth_turn_speed = imgui.drag_float("Smooth Turn Speed", cfg.smooth_turn_speed, 1.0, 1.0, 50.0)
-        end
+    if imgui.tree_node("Snap Turn") then
+        changed, cfg.snap_turn_angle = imgui.drag_float("Snap Turn Angle", cfg.snap_turn_angle, 15.0, 15.0, 90.0)
+        changed, cfg.snap_turn_back_enabled = imgui.checkbox("Tild Down to Turn Back Enabled", cfg.snap_turn_back_enabled)
+        changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
+        changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
         changed, cfg.no_camera_recoil = imgui.checkbox("No Camera Recoil in VR", cfg.no_camera_recoil)
+        changed, cfg.zero_pitch = imgui.checkbox("Set Pitch to Zero", cfg.zero_pitch)
         imgui.tree_pop()
     end
 end)
