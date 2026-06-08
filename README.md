@@ -6,7 +6,9 @@ Place `snap_turn.lua` under `reframework\autorun` under your RE2/3 game dir.
 
 Snap or Smooth turn is enabled in VR first person mode.
 
-Can change settings in "Enhanced Movement" under Script Generated UI.
+Can change settings in "Snap Turn" under Script Generated UI.
+
+Use re2_turn_speed_adjustment.lua without snap_turn.lua for greater range of possible turning speeds.
 
 re2_vr_crosshair.lua fixes a minor issue when using gamepad.
 
