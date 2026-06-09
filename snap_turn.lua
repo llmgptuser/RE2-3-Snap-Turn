@@ -134,8 +134,7 @@ sdk.hook(
     sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("setYaw"),
     function(args)
         if not cfg.snap_turn_enabled or not should_apply_snap_turn() or not re2.player or is_jacked(re2.player) then return end
-        stick_turn_rad = get_stick_turn_rad()
-        args[3] = sdk.float_to_ptr(sdk.to_float(args[3]) - stick_turn_rad)
+        args[3] = sdk.float_to_ptr(sdk.to_float(args[3]) - get_stick_turn_rad())
     end,
     function(retval)
         return retval
