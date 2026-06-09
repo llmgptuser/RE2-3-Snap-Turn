@@ -4,7 +4,7 @@ if gn ~= "re2" and gn ~= "re3" then
 end
 
 local cfg = {
-    turn_speed_multiplier = 2.0,
+    turn_speed_multiplier = 1.0,
 }
 
 local cfg_path = "re2_vr/turn_speed_multiplier_config.json"
