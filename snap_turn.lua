@@ -6,6 +6,7 @@ end
 local re2 = require("utility/RE2")
 
 local cfg = {
+    snap_turn_enabled = true,
     snap_turn_back_enabled = true,
     snap_turn_angle = 45.0,
     recenter_threshold = 0.4,
@@ -53,7 +54,7 @@ end
 sdk.hook(
     sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("updateYaw"),
     function(args)
-        if not should_apply_snap_turn() then return end
+        if not cfg.snap_turn_enabled or not should_apply_snap_turn() then return end
         -- Block native stick turn input.
         args[3] = sdk.float_to_ptr(0.0)
     end,
@@ -132,7 +133,7 @@ end
 sdk.hook(
     sdk.find_type_definition(sdk.game_namespace("camera.TwirlerCameraControllerRoot")):get_method("setYaw"),
     function(args)
-        if not should_apply_snap_turn() or not re2.player or is_jacked(re2.player) then return end
+        if not cfg.snap_turn_enabled or not should_apply_snap_turn() or not re2.player or is_jacked(re2.player) then return end
         stick_turn_rad = get_stick_turn_rad()
         args[3] = sdk.float_to_ptr(sdk.to_float(args[3]) - stick_turn_rad)
     end,
@@ -159,10 +160,13 @@ sdk.hook(
 re.on_draw_ui(function()
     local changed = false
     if imgui.tree_node("Snap Turn") then
-        changed, cfg.snap_turn_angle = imgui.drag_float("Snap Turn Angle", cfg.snap_turn_angle, 15.0, 15.0, 90.0)
-        changed, cfg.snap_turn_back_enabled = imgui.checkbox("Tild Down to Turn Back Enabled", cfg.snap_turn_back_enabled)
-        changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
-        changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
+        changed, cfg.snap_turn_enabled = imgui.checkbox("Snap Turn Enabled", cfg.snap_turn_enabled)
+        if cfg.snap_turn_enabled then        
+            changed, cfg.snap_turn_angle = imgui.drag_float("Snap Turn Angle", cfg.snap_turn_angle, 15.0, 15.0, 90.0)
+            changed, cfg.snap_turn_back_enabled = imgui.checkbox("Tild Down to Turn Back Enabled", cfg.snap_turn_back_enabled)
+            changed, cfg.tilt_threshold = imgui.drag_float("Snap Turn Tilt Threshold", cfg.tilt_threshold, 0.05, 0.1, 1.0)
+            changed, cfg.recenter_threshold = imgui.drag_float("Snap Turn Recenter Threshold", cfg.recenter_threshold, 0.05, 0.1, 1.0)
+        end
         changed, cfg.no_camera_recoil = imgui.checkbox("No Camera Recoil in VR", cfg.no_camera_recoil)
         changed, cfg.zero_pitch = imgui.checkbox("Set Pitch to Zero", cfg.zero_pitch)
         imgui.tree_pop()
