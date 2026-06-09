@@ -8,7 +8,7 @@ Snap or Smooth turn is enabled in VR first person mode.
 
 Can change settings in "Snap Turn" under Script Generated UI.
 
-Use re2_turn_speed_adjustment.lua without snap_turn.lua for greater range of possible turning speeds.
+If you want smooth turn with higher turning speed, disable snap turn and adjust Turn Speed Multiplier.
 
 re2_vr_crosshair.lua fixes a minor issue when using gamepad.
 
